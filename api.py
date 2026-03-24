@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import FastAPI
 from pydantic import BaseModel
 from groq import Groq
@@ -13,7 +14,7 @@ app = FastAPI()
 # ================= CORS =================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # change later to your Netlify URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,13 +27,19 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# ================= FIREBASE =================
+# ================= FIREBASE (FIXED) =================
 if not firebase_admin._apps:
-    if not os.path.exists("firebase.json"):
-        raise Exception("firebase.json missing")
+    firebase_key = os.getenv("FIREBASE_KEY")
 
-    cred = credentials.Certificate("firebase.json")
-    firebase_admin.initialize_app(cred)
+    if not firebase_key:
+        raise Exception("FIREBASE_KEY not set")
+
+    try:
+        cred_dict = json.loads(firebase_key)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        raise Exception(f"Firebase init failed: {str(e)}")
 
 db = firestore.client()
 
